@@ -49,71 +49,70 @@ let storiesEndpoint stories =
   | Stories.New -> fromBaseUrl "new"
   | Stories.Job -> fromBaseUrl "job"
 
-let loadStoryItem (id: int) = async {
-  let endpoint = sprintf "https://hacker-news.firebaseio.com/v0/item/%d.json" id
-  let! (status, responseText) = Http.get endpoint
-  match status with
-  | 200 ->
-    match Decode.fromString itemDecoder responseText with
-    | Ok storyItem -> return Some storyItem
-    | Error _ -> return None
-  | _ ->
-    return None
-}
-
 let (|HttpOk|HttpError|) status =
   match status with
   | 200 -> HttpOk
   | _ -> HttpError
+let loadStoryItem (id: int) = async {
+    let endpoint = sprintf "https://hacker-news.firebaseio.com/v0/item/%d.json" id
+    let! (status, responseText) = Http.get endpoint
+    match status with
+    | HttpOk ->
+        match Decode.fromString itemDecoder responseText with
+        | Ok storyItem -> return Some storyItem
+        | Error _ -> return None
+    | HttpError ->
+        return None
+}
 
 let loadStoryItems stories = async {
-  do! Async.Sleep 1500
-  let endpoint = storiesEndpoint stories
-  let! (status, responseText) = Http.get endpoint
-  match status with
-  | HttpOk ->
-    // parse the response text as a list of IDs (ints)
-    let storyIds = Decode.fromString (Decode.list Decode.int) responseText
-    match storyIds with
-    | Ok storyIds ->
-        // take the first 10 IDs
-        // load the item from each ID in parallel
-        // aggregate the results into a single list
-        let! storyItems =
-          storyIds
-          |> List.truncate 10
-          |> List.map loadStoryItem
-          |> Async.Parallel
-          |> Async.map (List.ofArray >> List.choose id)
+    do! Async.Sleep 1500
+    let endpoint = storiesEndpoint stories
+    let! (status, responseText) = Http.get endpoint
+    match status with
+    | HttpOk ->
+        // parse the response text as a list of IDs (ints)
+        let storyIds = Decode.fromString (Decode.list Decode.int) responseText
+        match storyIds with
+        | Ok storyIds ->
+            // take the first 10 IDs
+            // load the item from each ID in parallel
+            // aggregate the results into a single list
+            let! storyItems =
+              storyIds
+              |> List.truncate 10
+              |> List.map loadStoryItem
+              |> Async.Parallel
+              |> Async.map (List.ofArray >> List.choose id)
 
-        return LoadStoryItems (Finished (Ok storyItems))
+            return LoadStoryItems (Finished (Ok storyItems))
 
-    | Error errorMsg ->
-        // could not parse the array of story ID's
-        return LoadStoryItems (Finished (Error errorMsg))
-  | HttpError ->
-    // non-OK response goes finishes with an error
-    return LoadStoryItems (Finished (Error responseText))
+        | Error errorMsg ->
+            // could not parse the array of story ID's
+            return LoadStoryItems (Finished (Error errorMsg))
+    | HttpError ->
+      // non-OK response goes finishes with an error
+      return LoadStoryItems (Finished (Error responseText))
 }
 
 let startLoading (state: State) =
   { state with StoryItems = InProgress }
 
 let update (msg: Msg) (state: State) =
-  match msg with
-  | ChangeStories stories ->
-      let nextState = { startLoading state with CurrentStories = stories }
-      let nextCmd = Cmd.fromAsync (loadStoryItems stories)
-      nextState, nextCmd
+    match msg with
+    | ChangeStories stories ->
+        let nextState = { startLoading state with CurrentStories = stories }
+        let nextCmd = Cmd.fromAsync (loadStoryItems stories)
+        nextState, nextCmd
 
-  | LoadStoryItems Started ->
-      let nextState = startLoading state
-      let nextCmd = Cmd.fromAsync (loadStoryItems state.CurrentStories)
-      nextState, nextCmd
+    | LoadStoryItems Started ->
+        let nextState = startLoading state
+        let nextCmd = Cmd.fromAsync (loadStoryItems state.CurrentStories)
+        nextState, nextCmd
 
-  | LoadStoryItems (Finished items) ->
-      let nextState = { state with StoryItems = Resolved items }
-      nextState, Cmd.none
+    | LoadStoryItems (Finished items) ->
+        let nextState = { state with StoryItems = Resolved items }
+        nextState, Cmd.none
 
 let storiesName = function
   | Stories.New -> "New"
@@ -196,9 +195,8 @@ let renderItem item =
   ]
 
 let renderItems (items: HackernewsItem list) =
-  Html.fragment [
-    for item in items ->
-      renderItem item
+  React.fragment [
+    for item in items -> renderItem item
   ]
 
 let spinner =
