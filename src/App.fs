@@ -9,8 +9,7 @@ open Fable.SimpleHttp
 type HackernewsItem = {
   id: int
   title: string
-  itemType: string
-  url: string
+  url: string option
   score : int
 }
 
@@ -26,8 +25,8 @@ type State =
     StoryItems : Deferred<Result<HackernewsItem list, string>> }
 
 type Msg =
-  | LoadStoryItems of AsyncOperationEvent<Result<HackernewsItem list, string>>
   | ChangeStories of Stories
+  | LoadStoryItems of AsyncOperationEvent<Result<HackernewsItem list, string>>
 
 let init() =
   { CurrentStories = Stories.New
@@ -37,8 +36,7 @@ let itemDecoder : Decoder<HackernewsItem> =
   Decode.object (fun fields -> {
     id = fields.Required.At [ "id" ] Decode.int
     title = fields.Required.At [ "title" ] Decode.string
-    itemType = fields.Required.At [ "type" ] Decode.string
-    url = fields.Required.At [ "url" ] Decode.string
+    url = fields.Optional.At [ "url" ] Decode.string
     score = fields.Required.At [ "score" ] Decode.int })
 
 let storiesEndpoint stories =
@@ -49,19 +47,15 @@ let storiesEndpoint stories =
   | Stories.New -> fromBaseUrl "new"
   | Stories.Job -> fromBaseUrl "job"
 
-let (|HttpOk|HttpError|) status =
-  match status with
-  | 200 -> HttpOk
-  | _ -> HttpError
 let loadStoryItem (id: int) = async {
     let endpoint = sprintf "https://hacker-news.firebaseio.com/v0/item/%d.json" id
     let! (status, responseText) = Http.get endpoint
     match status with
-    | HttpOk ->
+    | 200 ->
         match Decode.fromString itemDecoder responseText with
         | Ok storyItem -> return Some storyItem
         | Error _ -> return None
-    | HttpError ->
+    | _ ->
         return None
 }
 
@@ -70,7 +64,7 @@ let loadStoryItems stories = async {
     let endpoint = storiesEndpoint stories
     let! (status, responseText) = Http.get endpoint
     match status with
-    | HttpOk ->
+    | 200 ->
         // parse the response text as a list of IDs (ints)
         let storyIds = Decode.fromString (Decode.list Decode.int) responseText
         match storyIds with
@@ -90,23 +84,20 @@ let loadStoryItems stories = async {
         | Error errorMsg ->
             // could not parse the array of story ID's
             return LoadStoryItems (Finished (Error errorMsg))
-    | HttpError ->
+    | _ ->
       // non-OK response goes finishes with an error
       return LoadStoryItems (Finished (Error responseText))
 }
 
-let startLoading (state: State) =
-  { state with StoryItems = InProgress }
-
 let update (msg: Msg) (state: State) =
     match msg with
     | ChangeStories stories ->
-        let nextState = { startLoading state with CurrentStories = stories }
+        let nextState = { state with StoryItems = InProgress; CurrentStories = stories }
         let nextCmd = Cmd.fromAsync (loadStoryItems stories)
         nextState, nextCmd
 
     | LoadStoryItems Started ->
-        let nextState = startLoading state
+        let nextState = { state with StoryItems = InProgress }
         let nextCmd = Cmd.fromAsync (loadStoryItems state.CurrentStories)
         nextState, nextCmd
 
@@ -183,20 +174,19 @@ let renderItem item =
         ]
 
         div [ "column" ] [
-          Html.a [
-            prop.style [ style.textDecoration.underline ]
-            prop.target.blank
-            prop.href item.url
-            prop.text item.title
-          ]
+          match item.url with
+          | Some url ->
+              Html.a [
+                prop.style [ style.textDecoration.underline ]
+                prop.target.blank
+                prop.href url
+                prop.text item.title
+              ]
+
+          | None -> Html.p item.title
         ]
       ]
     ]
-  ]
-
-let renderItems (items: HackernewsItem list) =
-  React.fragment [
-    for item in items -> renderItem item
   ]
 
 let spinner =
@@ -214,7 +204,7 @@ let renderStories items =
   | HasNotStartedYet -> Html.none
   | InProgress -> spinner
   | Resolved (Error errorMsg) -> renderError errorMsg
-  | Resolved (Ok items) -> renderItems items
+  | Resolved (Ok items) -> React.fragment [ for item in items -> renderItem item ]
 
 let title = Html.h1 [
   prop.className "title"
