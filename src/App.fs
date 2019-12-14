@@ -118,16 +118,20 @@ let storyCategories = [
 ]
 
 let renderTabs selectedStories dispatch =
+  let switchStories stories =
+    if selectedStories <> stories
+    then dispatch (ChangeStories stories)
+
   Html.div [
     prop.className [ "tabs"; "is-toggle"; "is-fullwidth" ]
     prop.children [
       Html.ul [
-        for category in storyCategories ->
+        for stories in storyCategories ->
         Html.li [
-          prop.className [ if selectedStories = category then "is-active" ]
-          prop.onClick (fun _ -> if (selectedStories <> category) then dispatch (ChangeStories category))
+          prop.className [ if selectedStories = stories then "is-active" ]
+          prop.onClick (fun _ -> switchStories stories)
           prop.children [
-            Html.a [ Html.span (storiesName category) ]
+            Html.a [ Html.span (storiesName stories) ]
           ]
         ]
       ]
@@ -218,5 +222,4 @@ let render (state: State) (dispatch: Msg -> unit) =
 
 Program.mkProgram init update render
 |> Program.withReactSynchronous "elmish-app"
-|> Program.withConsoleTrace
 |> Program.run
