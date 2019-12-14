@@ -60,7 +60,6 @@ let loadStoryItem (id: int) = async {
 }
 
 let loadStoryItems stories = async {
-    do! Async.Sleep 1500
     let endpoint = storiesEndpoint stories
     let! (status, responseText) = Http.get endpoint
     match status with
@@ -111,29 +110,26 @@ let storiesName = function
   | Stories.Job -> "Job"
   | Stories.Top -> "Top"
 
-let renderTab currentStories stories dispatch =
-  Html.li [
-    prop.className [ currentStories = stories, "is-active" ]
-    prop.onClick (fun _ -> if (currentStories <> stories) then dispatch (ChangeStories stories))
-    prop.children [
-      Html.a [ Html.span (storiesName stories) ]
-    ]
-  ]
-
-let stories = [
+let storyCategories = [
   Stories.New
   Stories.Top
   Stories.Best
   Stories.Job
 ]
 
-let renderTabs currentStories dispatch =
+let renderTabs selectedStories dispatch =
   Html.div [
     prop.className [ "tabs"; "is-toggle"; "is-fullwidth" ]
     prop.children [
       Html.ul [
-        for story in stories ->
-        renderTab currentStories story dispatch
+        for category in storyCategories ->
+        Html.li [
+          prop.className [ if selectedStories = category then "is-active" ]
+          prop.onClick (fun _ -> if (selectedStories <> category) then dispatch (ChangeStories category))
+          prop.children [
+            Html.a [ Html.span (storiesName category) ]
+          ]
+        ]
       ]
     ]
   ]
@@ -206,16 +202,15 @@ let renderStories items =
   | Resolved (Error errorMsg) -> renderError errorMsg
   | Resolved (Ok items) -> React.fragment [ for item in items -> renderItem item ]
 
-let title = Html.h1 [
-  prop.className "title"
-  prop.text "Elmish Hacker News"
-]
-
 let render (state: State) (dispatch: Msg -> unit) =
   Html.div [
     prop.style [ style.padding 20 ]
     prop.children [
-      title
+      Html.h1 [
+        prop.className "title"
+        prop.text "Elmish Hacker News"
+      ]
+
       renderTabs state.CurrentStories dispatch
       renderStories state.StoryItems
     ]
