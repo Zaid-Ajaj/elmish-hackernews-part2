@@ -151,43 +151,41 @@ let div (classes: string list) (children: ReactElement list) =
   ]
 
 let renderItem item =
-  Html.div [
-    prop.className "box"
-    prop.style [
-      style.marginTop 15
-      style.marginBottom 15
-    ]
-    prop.children [
-      div [ "columns"; "is-mobile" ] [
-        div [ "column"; "is-narrow" ] [
-          Html.div [
-            prop.className [ "icon" ]
-            prop.style [ style.marginLeft 20 ]
-            prop.children [
-              Html.i [prop.className "fa fa-poll fa-2x"]
-              Html.span [
-                prop.style [ style.marginLeft 10; style.marginRight 10 ]
-                prop.text item.score
-              ]
-            ]
-          ]
-        ]
+    Html.div
+        [ prop.className [ "box" ]
+          prop.style
+              [ style.marginTop 15
+                style.marginBottom 15 ]
+          prop.children
+              [ Html.div
+                  [ prop.className [ "columns"; "is-mobile" ]
+                    prop.children
+                        [ Html.div
+                            [ prop.className [ "column"; "is-narrow" ]
+                              prop.children
+                                  [ Html.div
+                                      [ prop.className [ "icon" ]
+                                        prop.style [ style.marginLeft 20 ]
+                                        prop.children
+                                            [ Html.i [ prop.className [ "fa"; "fa-poll"; "fa-2x" ] ]
+                                              Html.span
+                                                  [ prop.style
+                                                      [ style.marginLeft 10
+                                                        style.marginRight 10 ]
+                                                    prop.text item.score ] ] ] ] ]
 
-        div [ "column" ] [
-          match item.url with
-          | Some url ->
-              Html.a [
-                prop.style [ style.textDecoration.underline ]
-                prop.target.blank
-                prop.href url
-                prop.text item.title
-              ]
+                          Html.div
+                              [ prop.className [ "icon" ]
+                                prop.children
+                                    [ match item.url with
+                                      | Some url ->
+                                          Html.a
+                                              [ prop.style [ style.textDecoration.underline ]
+                                                prop.target.blank
+                                                prop.href url
+                                                prop.text item.title ]
 
-          | None -> Html.p item.title
-        ]
-      ]
-    ]
-  ]
+                                      | None -> Html.p item.title ] ] ] ] ] ]
 
 let spinner =
   Html.div [
